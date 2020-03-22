@@ -25,8 +25,8 @@ You may also find signing useful for the following:
   protected resource, for example a downloadable file that a user has
   paid for.
 
-Protecting the SECRET_KEY
-=========================
+Protecting the ``SECRET_KEY``
+=============================
 
 When you create a new Django project using :djadmin:`startproject`, the
 ``settings.py`` file is generated automatically and gets a random
@@ -52,6 +52,15 @@ You can retrieve the original value using the ``unsign`` method::
     >>> original = signer.unsign(value)
     >>> original
     'My string'
+
+If you pass a non-string value to ``sign``, the value will be forced to string
+before being signed, and the ``unsign`` result will give you that string
+value::
+
+    >>> signed = signer.sign(2.5)
+    >>> original = signer.unsign(signed)
+    >>> original
+    '2.5'
 
 If the signature or value have been altered in any way, a
 ``django.core.signing.BadSignature`` exception will be raised::
@@ -79,8 +88,8 @@ generate signatures. You can use a different secret by passing it to the
     <https://tools.ietf.org/html/rfc4648#section-5>`_.  This alphabet contains
     alphanumeric characters, hyphens, and underscores.
 
-Using the salt argument
------------------------
+Using the ``salt`` argument
+---------------------------
 
 If you do not wish for every occurrence of a particular string to have the same
 signature hash, you can use the optional ``salt`` argument to the ``Signer``

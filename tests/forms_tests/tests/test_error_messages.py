@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import (
     BooleanField, CharField, ChoiceField, DateField, DateTimeField,
@@ -9,18 +6,19 @@ from django.forms import (
     ModelMultipleChoiceField, MultipleChoiceField, RegexField,
     SplitDateTimeField, TimeField, URLField, ValidationError, utils,
 )
-from django.test import SimpleTestCase, TestCase
-from django.utils.encoding import python_2_unicode_compatible
+from django.template import Context, Template
+from django.test import SimpleTestCase, TestCase, ignore_warnings
+from django.utils.deprecation import RemovedInDjango40Warning
 from django.utils.safestring import mark_safe
 
+from ..models import ChoiceModel
 
-class AssertFormErrorsMixin(object):
+
+class AssertFormErrorsMixin:
     def assertFormErrors(self, expected, the_callable, *args, **kwargs):
-        try:
+        with self.assertRaises(ValidationError) as cm:
             the_callable(*args, **kwargs)
-            self.fail("Testing the 'clean' method on %s failed to raise a ValidationError.")
-        except ValidationError as e:
-            self.assertEqual(e.messages, expected)
+        self.assertEqual(cm.exception.messages, expected)
 
 
 class FormsErrorMessagesTestCase(SimpleTestCase, AssertFormErrorsMixin):
@@ -218,7 +216,6 @@ class FormsErrorMessagesTestCase(SimpleTestCase, AssertFormErrorsMixin):
             def clean(self):
                 raise ValidationError("I like to be awkward.")
 
-        @python_2_unicode_compatible
         class CustomErrorList(utils.ErrorList):
             def __str__(self):
                 return self.as_divs()
@@ -244,11 +241,50 @@ class FormsErrorMessagesTestCase(SimpleTestCase, AssertFormErrorsMixin):
         self.assertHTMLEqual(str(form2['last_name'].errors), '<div class="error"><p>This field is required.</p></div>')
         self.assertHTMLEqual(str(form2.errors['__all__']), '<div class="error"><p>I like to be awkward.</p></div>')
 
+    def test_error_messages_escaping(self):
+        # The forms layer doesn't escape input values directly because error
+        # messages might be presented in non-HTML contexts. Instead, the
+        # message is marked for escaping by the template engine, so a template
+        # is needed to trigger the escaping.
+        t = Template('{{ form.errors }}')
+
+        class SomeForm(Form):
+            field = ChoiceField(choices=[('one', 'One')])
+
+        f = SomeForm({'field': '<script>'})
+        self.assertHTMLEqual(
+            t.render(Context({'form': f})),
+            '<ul class="errorlist"><li>field<ul class="errorlist">'
+            '<li>Select a valid choice. &lt;script&gt; is not one of the '
+            'available choices.</li></ul></li></ul>'
+        )
+
+        class SomeForm(Form):
+            field = MultipleChoiceField(choices=[('one', 'One')])
+
+        f = SomeForm({'field': ['<script>']})
+        self.assertHTMLEqual(
+            t.render(Context({'form': f})),
+            '<ul class="errorlist"><li>field<ul class="errorlist">'
+            '<li>Select a valid choice. &lt;script&gt; is not one of the '
+            'available choices.</li></ul></li></ul>'
+        )
+
+        class SomeForm(Form):
+            field = ModelMultipleChoiceField(ChoiceModel.objects.all())
+
+        f = SomeForm({'field': ['<script>']})
+        self.assertHTMLEqual(
+            t.render(Context({'form': f})),
+            '<ul class="errorlist"><li>field<ul class="errorlist">'
+            '<li>“&lt;script&gt;” is not a valid value.</li>'
+            '</ul></li></ul>'
+        )
+
 
 class ModelChoiceFieldErrorMessagesTestCase(TestCase, AssertFormErrorsMixin):
     def test_modelchoicefield(self):
         # Create choices for the model choice field tests below.
-        from forms_tests.models import ChoiceModel
         ChoiceModel.objects.create(pk=1, name='a')
         ChoiceModel.objects.create(pk=2, name='b')
         ChoiceModel.objects.create(pk=3, name='c')
@@ -266,9 +302,30 @@ class ModelChoiceFieldErrorMessagesTestCase(TestCase, AssertFormErrorsMixin):
         e = {
             'required': 'REQUIRED',
             'invalid_choice': '%(value)s IS INVALID CHOICE',
-            'list': 'NOT A LIST OF VALUES',
+            'invalid_list': 'NOT A LIST OF VALUES',
         }
         f = ModelMultipleChoiceField(queryset=ChoiceModel.objects.all(), error_messages=e)
         self.assertFormErrors(['REQUIRED'], f.clean, '')
         self.assertFormErrors(['NOT A LIST OF VALUES'], f.clean, '3')
         self.assertFormErrors(['4 IS INVALID CHOICE'], f.clean, ['4'])
+
+
+class DeprecationTests(TestCase, AssertFormErrorsMixin):
+    @ignore_warnings(category=RemovedInDjango40Warning)
+    def test_list_error_message(self):
+        f = ModelMultipleChoiceField(
+            queryset=ChoiceModel.objects.all(),
+            error_messages={'list': 'NOT A LIST OF VALUES'},
+        )
+        self.assertFormErrors(['NOT A LIST OF VALUES'], f.clean, '3')
+
+    def test_list_error_message_warning(self):
+        msg = (
+            "The 'list' error message key is deprecated in favor of "
+            "'invalid_list'."
+        )
+        with self.assertRaisesMessage(RemovedInDjango40Warning, msg):
+            ModelMultipleChoiceField(
+                queryset=ChoiceModel.objects.all(),
+                error_messages={'list': 'NOT A LIST OF VALUES'},
+            )

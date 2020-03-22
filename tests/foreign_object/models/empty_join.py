@@ -1,13 +1,10 @@
 from django.db import models
-from django.db.models.fields.related import (
-    ForeignObjectRel, ReverseManyToOneDescriptor,
-)
+from django.db.models.fields.related import ReverseManyToOneDescriptor
 from django.db.models.lookups import StartsWith
 from django.db.models.query_utils import PathInfo
-from django.utils.encoding import python_2_unicode_compatible
 
 
-class CustomForeignObjectRel(ForeignObjectRel):
+class CustomForeignObjectRel(models.ForeignObjectRel):
     """
     Define some extra Field methods so this Rel acts more like a Field, which
     lets us use ReverseManyToOneDescriptor in both directions.
@@ -37,7 +34,7 @@ class StartsWithRelation(models.ForeignObject):
 
     def __init__(self, *args, **kwargs):
         kwargs['on_delete'] = models.DO_NOTHING
-        super(StartsWithRelation, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @property
     def field(self):
@@ -52,20 +49,36 @@ class StartsWithRelation(models.ForeignObject):
         return StartsWith(to_field.get_col(alias), from_field.get_col(related_alias))
 
     def get_joining_columns(self, reverse_join=False):
-        return tuple()
+        return ()
 
-    def get_path_info(self):
+    def get_path_info(self, filtered_relation=None):
         to_opts = self.remote_field.model._meta
         from_opts = self.model._meta
-        return [PathInfo(from_opts, to_opts, (to_opts.pk,), self, False, False)]
+        return [PathInfo(
+            from_opts=from_opts,
+            to_opts=to_opts,
+            target_fields=(to_opts.pk,),
+            join_field=self,
+            m2m=False,
+            direct=False,
+            filtered_relation=filtered_relation,
+        )]
 
-    def get_reverse_path_info(self):
+    def get_reverse_path_info(self, filtered_relation=None):
         to_opts = self.model._meta
         from_opts = self.remote_field.model._meta
-        return [PathInfo(from_opts, to_opts, (to_opts.pk,), self.remote_field, False, False)]
+        return [PathInfo(
+            from_opts=from_opts,
+            to_opts=to_opts,
+            target_fields=(to_opts.pk,),
+            join_field=self.remote_field,
+            m2m=False,
+            direct=False,
+            filtered_relation=filtered_relation,
+        )]
 
-    def contribute_to_class(self, cls, name, virtual_only=False):
-        super(StartsWithRelation, self).contribute_to_class(cls, name, virtual_only)
+    def contribute_to_class(self, cls, name, private_only=False):
+        super().contribute_to_class(cls, name, private_only)
         setattr(cls, self.name, ReverseManyToOneDescriptor(self))
 
 
@@ -78,9 +91,8 @@ class BrokenContainsRelation(StartsWithRelation):
         return None
 
 
-@python_2_unicode_compatible
 class SlugPage(models.Model):
-    slug = models.CharField(max_length=20)
+    slug = models.CharField(max_length=20, unique=True)
     descendants = StartsWithRelation(
         'self',
         from_fields=['slug'],

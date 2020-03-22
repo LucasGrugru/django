@@ -10,13 +10,19 @@ editing content:
 * :class:`django.views.generic.edit.UpdateView`
 * :class:`django.views.generic.edit.DeleteView`
 
+.. seealso::
+
+    The :doc:`messages framework </ref/contrib/messages>` contains
+    :class:`~django.contrib.messages.views.SuccessMessageMixin`, which
+    facilitates presenting messages about successful form submissions.
+
 .. note::
 
     Some of the examples on this page assume that an ``Author`` model has been
     defined as follows in ``myapp/models.py``::
 
-        from django.core.urlresolvers import reverse
         from django.db import models
+        from django.urls import reverse
 
         class Author(models.Model):
             name = models.CharField(max_length=200)
@@ -24,8 +30,8 @@ editing content:
             def get_absolute_url(self):
                 return reverse('author-detail', kwargs={'pk': self.pk})
 
-FormView
---------
+``FormView``
+============
 
 .. class:: django.views.generic.edit.FormView
 
@@ -68,20 +74,20 @@ FormView
                 # This method is called when valid form data has been POSTed.
                 # It should return an HttpResponse.
                 form.send_email()
-                return super(ContactView, self).form_valid(form)
+                return super().form_valid(form)
 
     **Example myapp/contact.html**:
 
     .. code-block:: html+django
 
-        <form action="" method="post">{% csrf_token %}
+        <form method="post">{% csrf_token %}
             {{ form.as_p }}
-            <input type="submit" value="Send message" />
+            <input type="submit" value="Send message">
         </form>
 
 
-CreateView
-----------
+``CreateView``
+==============
 
 .. class:: django.views.generic.edit.CreateView
 
@@ -130,13 +136,13 @@ CreateView
 
     .. code-block:: html+django
 
-        <form action="" method="post">{% csrf_token %}
+        <form method="post">{% csrf_token %}
             {{ form.as_p }}
-            <input type="submit" value="Create" />
+            <input type="submit" value="Save">
         </form>
 
-UpdateView
-----------
+``UpdateView``
+==============
 
 .. class:: django.views.generic.edit.UpdateView
 
@@ -187,13 +193,13 @@ UpdateView
 
     .. code-block:: html+django
 
-        <form action="" method="post">{% csrf_token %}
+        <form method="post">{% csrf_token %}
             {{ form.as_p }}
-            <input type="submit" value="Update" />
+            <input type="submit" value="Update">
         </form>
 
-DeleteView
-----------
+``DeleteView``
+==============
 
 .. class:: django.views.generic.edit.DeleteView
 
@@ -226,8 +232,8 @@ DeleteView
 
     **Example myapp/views.py**::
 
+        from django.urls import reverse_lazy
         from django.views.generic.edit import DeleteView
-        from django.core.urlresolvers import reverse_lazy
         from myapp.models import Author
 
         class AuthorDelete(DeleteView):
@@ -238,7 +244,7 @@ DeleteView
 
     .. code-block:: html+django
 
-        <form action="" method="post">{% csrf_token %}
+        <form method="post">{% csrf_token %}
             <p>Are you sure you want to delete "{{ object }}"?</p>
-            <input type="submit" value="Confirm" />
+            <input type="submit" value="Confirm">
         </form>

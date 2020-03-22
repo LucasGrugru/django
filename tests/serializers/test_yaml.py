@@ -1,14 +1,10 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import importlib
 import unittest
+from io import StringIO
 
 from django.core import management, serializers
 from django.core.serializers.base import DeserializationError
 from django.test import SimpleTestCase, TestCase, TransactionTestCase
-from django.utils import six
-from django.utils.six import StringIO
 
 from .models import Author
 from .tests import SerializersTestBase, SerializersTransactionTestBase
@@ -22,7 +18,7 @@ except ImportError:
 YAML_IMPORT_ERROR_MESSAGE = r'No module named yaml'
 
 
-class YamlImportModuleMock(object):
+class YamlImportModuleMock:
     """Provides a wrapped import_module function to simulate yaml ImportError
 
     In order to run tests that verify the behavior of the YAML serializer
@@ -51,7 +47,7 @@ class NoYamlSerializerTestCase(SimpleTestCase):
     @classmethod
     def setUpClass(cls):
         """Removes imported yaml and stubs importlib.import_module"""
-        super(NoYamlSerializerTestCase, cls).setUpClass()
+        super().setUpClass()
 
         cls._import_module_mock = YamlImportModuleMock()
         importlib.import_module = cls._import_module_mock.import_module
@@ -62,7 +58,7 @@ class NoYamlSerializerTestCase(SimpleTestCase):
     @classmethod
     def tearDownClass(cls):
         """Puts yaml back if necessary"""
-        super(NoYamlSerializerTestCase, cls).tearDownClass()
+        super().tearDownClass()
 
         importlib.import_module = cls._import_module_mock._import_module
 
@@ -72,44 +68,30 @@ class NoYamlSerializerTestCase(SimpleTestCase):
     def test_serializer_pyyaml_error_message(self):
         """Using yaml serializer without pyyaml raises ImportError"""
         jane = Author(name="Jane")
-        self.assertRaises(ImportError, serializers.serialize, "yaml", [jane])
+        with self.assertRaises(ImportError):
+            serializers.serialize("yaml", [jane])
 
     def test_deserializer_pyyaml_error_message(self):
         """Using yaml deserializer without pyyaml raises ImportError"""
-        self.assertRaises(ImportError, serializers.deserialize, "yaml", "")
+        with self.assertRaises(ImportError):
+            serializers.deserialize("yaml", "")
 
     def test_dumpdata_pyyaml_error_message(self):
         """Calling dumpdata produces an error when yaml package missing"""
-        with six.assertRaisesRegex(self, management.CommandError, YAML_IMPORT_ERROR_MESSAGE):
+        with self.assertRaisesMessage(management.CommandError, YAML_IMPORT_ERROR_MESSAGE):
             management.call_command('dumpdata', format='yaml')
 
 
 @unittest.skipUnless(HAS_YAML, "No yaml library detected")
 class YamlSerializerTestCase(SerializersTestBase, TestCase):
     serializer_name = "yaml"
-    fwd_ref_str = """- fields:
-    headline: Forward references pose no problem
-    pub_date: 2006-06-16 15:00:00
-    categories: [1]
-    author: 1
-  pk: 1
-  model: serializers.article
-- fields:
-    name: Reference
-  pk: 1
-  model: serializers.category
-- fields:
-    name: Agnes
-  pk: 1
-  model: serializers.author"""
-
-    pkless_str = """- fields:
-    name: Reference
+    pkless_str = """- model: serializers.category
   pk: null
-  model: serializers.category
-- fields:
-    name: Non-fiction
-  model: serializers.category"""
+  fields:
+    name: Reference
+- model: serializers.category
+  fields:
+    name: Non-fiction"""
 
     mapping_ordering_str = """- model: serializers.article
   pk: %(article_pk)s
@@ -117,7 +99,9 @@ class YamlSerializerTestCase(SerializersTestBase, TestCase):
     author: %(author_pk)s
     headline: Poker has no place on ESPN
     pub_date: 2006-06-16 11:00:00
-    categories: [%(first_category_pk)s, %(second_category_pk)s]
+    categories:""" + (
+        ' [%(first_category_pk)s, %(second_category_pk)s]' if HAS_YAML and yaml.__version__ < '5.1'
+        else '\n    - %(first_category_pk)s\n    - %(second_category_pk)s') + """
     meta_data: []
 """
 
@@ -148,7 +132,7 @@ class YamlSerializerTestCase(SerializersTestBase, TestCase):
                 # yaml.safe_load will return non-string objects for some
                 # of the fields we are interested in, this ensures that
                 # everything comes back as a string
-                if isinstance(field_value, six.string_types):
+                if isinstance(field_value, str):
                     ret_list.append(field_value)
                 else:
                     ret_list.append(str(field_value))
@@ -163,18 +147,18 @@ class YamlSerializerTestCase(SerializersTestBase, TestCase):
 @unittest.skipUnless(HAS_YAML, "No yaml library detected")
 class YamlSerializerTransactionTestCase(SerializersTransactionTestBase, TransactionTestCase):
     serializer_name = "yaml"
-    fwd_ref_str = """- fields:
+    fwd_ref_str = """- model: serializers.article
+  pk: 1
+  fields:
     headline: Forward references pose no problem
     pub_date: 2006-06-16 15:00:00
     categories: [1]
     author: 1
+- model: serializers.category
   pk: 1
-  model: serializers.article
-- fields:
+  fields:
     name: Reference
+- model: serializers.author
   pk: 1
-  model: serializers.category
-- fields:
-    name: Agnes
-  pk: 1
-  model: serializers.author"""
+  fields:
+    name: Agnes"""

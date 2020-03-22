@@ -4,7 +4,7 @@ The following classes are for testing basic data marshalling, including
 NULL values, where allowed.
 The basic idea is to have a model for each Django data type.
 """
-from __future__ import unicode_literals
+import uuid
 
 from django.contrib.contenttypes.fields import (
     GenericForeignKey, GenericRelation,
@@ -20,7 +20,7 @@ class BinaryData(models.Model):
 
 
 class BooleanData(models.Model):
-    data = models.BooleanField(default=False)
+    data = models.BooleanField(default=False, null=True)
 
 
 class CharData(models.Model):
@@ -44,7 +44,7 @@ class EmailData(models.Model):
 
 
 class FileData(models.Model):
-    data = models.FileField(null=True, upload_to='/foo/bar')
+    data = models.FileField(null=True)
 
 
 class FilePathData(models.Model):
@@ -72,6 +72,10 @@ class GenericIPAddressData(models.Model):
 
 class NullBooleanData(models.Model):
     data = models.NullBooleanField(null=True)
+
+
+class PositiveBigIntegerData(models.Model):
+    data = models.PositiveBigIntegerField(null=True)
 
 
 class PositiveIntegerData(models.Model):
@@ -190,11 +194,13 @@ class BooleanPKData(models.Model):
 class CharPKData(models.Model):
     data = models.CharField(max_length=30, primary_key=True)
 
-# class DatePKData(models.Model):
-#    data = models.DateField(primary_key=True)
 
-# class DateTimePKData(models.Model):
-#    data = models.DateTimeField(primary_key=True)
+class DatePKData(models.Model):
+    data = models.DateField(primary_key=True)
+
+
+class DateTimePKData(models.Model):
+    data = models.DateTimeField(primary_key=True)
 
 
 class DecimalPKData(models.Model):
@@ -205,7 +211,7 @@ class EmailPKData(models.Model):
     data = models.EmailField(primary_key=True)
 
 # class FilePKData(models.Model):
-#    data = models.FileField(primary_key=True, upload_to='/foo/bar')
+#    data = models.FileField(primary_key=True)
 
 
 class FilePathPKData(models.Model):
@@ -225,10 +231,6 @@ class IntegerPKData(models.Model):
 
 class GenericIPAddressPKData(models.Model):
     data = models.GenericIPAddressField(primary_key=True)
-
-# This is just a Boolean field with null=True, and we can't test a PK value of NULL.
-# class NullBooleanPKData(models.Model):
-#     data = models.NullBooleanField(primary_key=True)
 
 
 class PositiveIntegerPKData(models.Model):
@@ -257,6 +259,10 @@ class UUIDData(models.Model):
     data = models.UUIDField(primary_key=True)
 
 
+class UUIDDefaultData(models.Model):
+    data = models.UUIDField(primary_key=True, default=uuid.uuid4)
+
+
 class FKToUUID(models.Model):
     data = models.ForeignKey(UUIDData, models.CASCADE)
 
@@ -275,11 +281,11 @@ class ModifyingSaveData(models.Model):
     def save(self, *args, **kwargs):
         """
         A save method that modifies the data in the object.
-        Verifies that a user-defined save() method isn't called when objects
-        are deserialized (#4459).
+        A user-defined save() method isn't called when objects are deserialized
+        (#4459).
         """
         self.data = 666
-        super(ModifyingSaveData, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 # Tests for serialization of models using inheritance.
 # Regression for #7202, #7350
@@ -301,7 +307,7 @@ class InheritBaseModel(BaseModel):
 
 
 class ExplicitInheritBaseModel(BaseModel):
-    parent = models.OneToOneField(BaseModel, models.CASCADE)
+    parent = models.OneToOneField(BaseModel, models.CASCADE, parent_link=True)
     child_data = models.IntegerField()
 
 

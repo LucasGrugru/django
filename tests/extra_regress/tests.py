@@ -1,7 +1,4 @@
-from __future__ import unicode_literals
-
 import datetime
-from collections import OrderedDict
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -11,8 +8,9 @@ from .models import Order, RevisionableModel, TestObject
 
 class ExtraRegressTests(TestCase):
 
-    def setUp(self):
-        self.u = User.objects.create_user(
+    @classmethod
+    def setUpTestData(cls):
+        cls.u = User.objects.create_user(
             username="fred",
             password="secret",
             email="fred@example.com"
@@ -46,15 +44,15 @@ class ExtraRegressTests(TestCase):
             }]
         )
 
-        self.assertQuerysetEqual(qs,
-            [('Second Revision', 'First Revision')],
+        self.assertQuerysetEqual(
+            qs, [('Second Revision', 'First Revision')],
             transform=lambda r: (r.title, r.base.title)
         )
 
         # Queryset to search for string in title:
         qs2 = RevisionableModel.objects.filter(title__contains="Revision")
-        self.assertQuerysetEqual(qs2,
-            [
+        self.assertQuerysetEqual(
+            qs2, [
                 ('First Revision', 'First Revision'),
                 ('Second Revision', 'First Revision'),
             ],
@@ -63,7 +61,8 @@ class ExtraRegressTests(TestCase):
         )
 
         # Following queryset should return the most recent revision:
-        self.assertQuerysetEqual(qs & qs2,
+        self.assertQuerysetEqual(
+            qs & qs2,
             [('Second Revision', 'First Revision')],
             transform=lambda r: (r.title, r.base.title),
             ordered=False
@@ -73,10 +72,7 @@ class ExtraRegressTests(TestCase):
         # Extra select parameters should stay tied to their corresponding
         # select portions. Applies when portions are updated or otherwise
         # moved around.
-        qs = User.objects.extra(
-            select=OrderedDict((("alpha", "%s"), ("beta", "2"), ("gamma", "%s"))),
-            select_params=(1, 3)
-        )
+        qs = User.objects.extra(select={'alpha': '%s', 'beta': "2", 'gamma': '%s'}, select_params=(1, 3))
         qs = qs.extra(select={"beta": 4})
         qs = qs.extra(select={"alpha": "%s"}, select_params=[5])
         self.assertEqual(
@@ -111,10 +107,8 @@ class ExtraRegressTests(TestCase):
         query as well.
         """
         self.assertEqual(
-            list(User.objects
-                .extra(select={"alpha": "%s"}, select_params=(-6,))
-                .filter(id=self.u.id)
-                .values_list('id', flat=True)),
+            list(User.objects.extra(select={"alpha": "%s"}, select_params=(-6,))
+                 .filter(id=self.u.id).values_list('id', flat=True)),
             [self.u.id]
         )
 
@@ -170,10 +164,9 @@ class ExtraRegressTests(TestCase):
             when=datetime.datetime(2008, 9, 28, 10, 30, 0)
         )
 
-        self.assertQuerysetEqual(
+        self.assertSequenceEqual(
             RevisionableModel.objects.extra(select={"the_answer": 'id'}).datetimes('when', 'month'),
             [datetime.datetime(2008, 9, 1, 0, 0)],
-            transform=lambda d: d,
         )
 
     def test_values_with_extra(self):
@@ -187,7 +180,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values()
             ),
             [{
@@ -201,7 +194,7 @@ class ExtraRegressTests(TestCase):
             list(
                 TestObject.objects
                 .values()
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
             ),
             [{
                 'bar': 'second', 'third': 'third', 'second': 'second', 'whiz': 'third', 'foo': 'first',
@@ -213,7 +206,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values('first', 'second')
             ),
             [{'second': 'second', 'first': 'first'}]
@@ -224,7 +217,7 @@ class ExtraRegressTests(TestCase):
             list(
                 TestObject.objects
                 .values('first', 'second')
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
             ),
             [{'second': 'second', 'first': 'first'}]
         )
@@ -233,7 +226,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values('first', 'second', 'foo')
             ),
             [{'second': 'second', 'foo': 'first', 'first': 'first'}]
@@ -243,7 +236,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values('foo', 'whiz')
             ),
             [{'foo': 'first', 'whiz': 'third'}]
@@ -254,7 +247,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list()
             ),
             [('first', 'second', 'third', obj.pk, 'first', 'second', 'third')]
@@ -265,7 +258,7 @@ class ExtraRegressTests(TestCase):
             list(
                 TestObject.objects
                 .values_list()
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
             ),
             [('first', 'second', 'third', obj.pk, 'first', 'second', 'third')]
         )
@@ -274,7 +267,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('first', 'second')
             ),
             [('first', 'second')]
@@ -285,7 +278,7 @@ class ExtraRegressTests(TestCase):
             list(
                 TestObject.objects
                 .values_list('first', 'second')
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
             ),
             [('first', 'second')]
         )
@@ -293,7 +286,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('second', flat=True)
             ),
             ['second']
@@ -303,7 +296,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('first', 'second', 'whiz')
             ),
             [('first', 'second', 'third')]
@@ -313,7 +306,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('foo', 'whiz')
             ),
             [('first', 'third')]
@@ -322,7 +315,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('whiz', flat=True)
             ),
             ['third']
@@ -332,7 +325,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('whiz', 'foo')
             ),
             [('third', 'first')]
@@ -341,7 +334,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('first', 'id')
             ),
             [('first', obj.pk)]
@@ -350,7 +343,7 @@ class ExtraRegressTests(TestCase):
         self.assertEqual(
             list(
                 TestObject.objects
-                .extra(select=OrderedDict((('foo', 'first'), ('bar', 'second'), ('whiz', 'third'))))
+                .extra(select={'foo': 'first', 'bar': 'second', 'whiz': 'third'})
                 .values_list('whiz', 'first', 'bar', 'id')
             ),
             [('third', 'first', 'second', obj.pk)]
@@ -397,7 +390,7 @@ class ExtraRegressTests(TestCase):
 
     def test_regression_17877(self):
         """
-        Ensure that extra WHERE clauses get correctly ANDed, even when they
+        Extra WHERE clauses get correctly ANDed, even when they
         contain OR operations.
         """
         # Test Case 1: should appear in queryset.
@@ -433,12 +426,9 @@ class ExtraRegressTests(TestCase):
         qs = TestObject.objects.extra(
             select={'second_extra': 'second'}
         ).values_list('id', flat=True).distinct()
-        self.assertQuerysetEqual(
-            qs.order_by('second_extra'), [t1.pk, t2.pk], lambda x: x)
-        self.assertQuerysetEqual(
-            qs.order_by('-second_extra'), [t2.pk, t1.pk], lambda x: x)
+        self.assertSequenceEqual(qs.order_by('second_extra'), [t1.pk, t2.pk])
+        self.assertSequenceEqual(qs.order_by('-second_extra'), [t2.pk, t1.pk])
         # Note: the extra ordering must appear in select clause, so we get two
         # non-distinct results here (this is on purpose, see #7070).
-        self.assertQuerysetEqual(
-            qs.order_by('-second_extra').values_list('first', flat=True),
-            ['a', 'a'], lambda x: x)
+        # Extra select doesn't appear in result values.
+        self.assertSequenceEqual(qs.order_by('-second_extra').values_list('first'), [('a',), ('a',)])

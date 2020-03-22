@@ -1,10 +1,8 @@
 import datetime
 
 from django.db import models
-from django.utils.encoding import python_2_unicode_compatible
 
 
-@python_2_unicode_compatible
 class Country(models.Model):
     # Table Column Fields
     name = models.CharField(max_length=50)
@@ -13,7 +11,6 @@ class Country(models.Model):
         return self.name
 
 
-@python_2_unicode_compatible
 class Person(models.Model):
     # Table Column Fields
     name = models.CharField(max_length=128)
@@ -35,7 +32,6 @@ class Person(models.Model):
         return self.name
 
 
-@python_2_unicode_compatible
 class Group(models.Model):
     # Table Column Fields
     name = models.CharField(max_length=128)
@@ -49,26 +45,25 @@ class Group(models.Model):
         return self.name
 
 
-@python_2_unicode_compatible
 class Membership(models.Model):
     # Table Column Fields
     membership_country = models.ForeignKey(Country, models.CASCADE)
     date_joined = models.DateTimeField(default=datetime.datetime.now)
     invite_reason = models.CharField(max_length=64, null=True)
     person_id = models.IntegerField()
-    group_id = models.IntegerField()
+    group_id = models.IntegerField(blank=True, null=True)
 
     # Relation Fields
     person = models.ForeignObject(
         Person,
-        from_fields=['membership_country', 'person_id'],
-        to_fields=['person_country_id', 'id'],
+        from_fields=['person_id', 'membership_country'],
+        to_fields=['id', 'person_country_id'],
         on_delete=models.CASCADE,
     )
     group = models.ForeignObject(
         Group,
-        from_fields=['membership_country', 'group_id'],
-        to_fields=['group_country', 'id'],
+        from_fields=['group_id', 'membership_country'],
+        to_fields=['id', 'group_country'],
         on_delete=models.CASCADE,
     )
 
@@ -76,7 +71,8 @@ class Membership(models.Model):
         ordering = ('date_joined', 'invite_reason')
 
     def __str__(self):
-        return "%s is a member of %s" % (self.person.name, self.group.name)
+        group_name = self.group.name if self.group_id else 'NULL'
+        return "%s is a member of %s" % (self.person.name, group_name)
 
 
 class Friendship(models.Model):
@@ -92,7 +88,8 @@ class Friendship(models.Model):
         on_delete=models.CASCADE,
         from_fields=['from_friend_country', 'from_friend_id'],
         to_fields=['person_country_id', 'id'],
-        related_name='from_friend')
+        related_name='from_friend',
+    )
 
     to_friend_country = models.ForeignObject(
         Country,

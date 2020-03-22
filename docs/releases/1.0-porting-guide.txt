@@ -134,7 +134,7 @@ extensibility and customization in mind.
 
 Practically, this means you'll need to rewrite all of your ``class Admin``
 declarations. You've already seen in `models`_ above how to replace your ``class
-Admin`` with a ``admin.site.register()`` call in an ``admin.py`` file. Below are
+Admin`` with an ``admin.site.register()`` call in an ``admin.py`` file. Below are
 some more details on how to rewrite that ``Admin`` declaration into the new
 syntax.
 
@@ -298,11 +298,11 @@ Old (0.96)            New (1.0)
 ===================== =====================
 
 Work with file fields using the new API
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The internal implementation of :class:`django.db.models.FileField` have changed.
 A visible result of this is that the way you access special attributes (URL,
-filename, image size, etc) of these model fields has changed. You will need to
+filename, image size, etc.) of these model fields has changed. You will need to
 make the following changes, assuming your model's
 :class:`~django.db.models.FileField` is called ``myfile``:
 
@@ -401,8 +401,8 @@ Template tags
 :ttag:`spaceless` tag
 ~~~~~~~~~~~~~~~~~~~~~
 
-The spaceless template tag now removes *all* spaces between HTML tags, instead
-of preserving a single space.
+The ``spaceless`` template tag now removes *all* spaces between HTML tags,
+instead of preserving a single space.
 
 Local flavors
 -------------
@@ -644,7 +644,7 @@ Testing
 -------
 
 :meth:`django.test.Client.login` has changed
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Old (0.96)::
 

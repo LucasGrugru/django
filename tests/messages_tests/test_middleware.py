@@ -1,19 +1,15 @@
 import unittest
 
-from django import http
 from django.contrib.messages.middleware import MessageMiddleware
+from django.http import HttpRequest, HttpResponse
 
 
-class MiddlewareTest(unittest.TestCase):
-
-    def setUp(self):
-        self.middleware = MessageMiddleware()
+class MiddlewareTests(unittest.TestCase):
 
     def test_response_without_messages(self):
         """
-        Makes sure that the response middleware is tolerant of messages not
-        existing on request.
+        MessageMiddleware is tolerant of messages not existing on request.
         """
-        request = http.HttpRequest()
-        response = http.HttpResponse()
-        self.middleware.process_response(request, response)
+        request = HttpRequest()
+        response = HttpResponse()
+        MessageMiddleware(lambda req: HttpResponse()).process_response(request, response)

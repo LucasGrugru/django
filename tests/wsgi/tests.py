@@ -1,19 +1,16 @@
-from __future__ import unicode_literals
-
-import unittest
-
 from django.core.exceptions import ImproperlyConfigured
 from django.core.servers.basehttp import get_internal_wsgi_application
 from django.core.signals import request_started
 from django.core.wsgi import get_wsgi_application
 from django.db import close_old_connections
-from django.test import TestCase, override_settings
+from django.http import FileResponse
+from django.test import SimpleTestCase, override_settings
 from django.test.client import RequestFactory
-from django.utils import six
 
 
-@override_settings(ROOT_URLCONF="wsgi.urls")
-class WSGITest(TestCase):
+@override_settings(ROOT_URLCONF='wsgi.urls')
+class WSGITest(SimpleTestCase):
+    request_factory = RequestFactory()
 
     def setUp(self):
         request_started.disconnect(close_old_connections)
@@ -23,12 +20,11 @@ class WSGITest(TestCase):
 
     def test_get_wsgi_application(self):
         """
-        Verify that ``get_wsgi_application`` returns a functioning WSGI
-        callable.
+        get_wsgi_application() returns a functioning WSGI callable.
         """
         application = get_wsgi_application()
 
-        environ = RequestFactory()._base_environ(
+        environ = self.request_factory._base_environ(
             PATH_INFO="/",
             CONTENT_TYPE="text/html; charset=utf-8",
             REQUEST_METHOD="GET"
@@ -44,21 +40,23 @@ class WSGITest(TestCase):
 
         self.assertEqual(response_data["status"], "200 OK")
         self.assertEqual(
-            response_data["headers"],
-            [('Content-Type', 'text/html; charset=utf-8')])
-        self.assertEqual(
-            bytes(response),
-            b"Content-Type: text/html; charset=utf-8\r\n\r\nHello World!")
+            set(response_data["headers"]),
+            {('Content-Length', '12'), ('Content-Type', 'text/html; charset=utf-8')})
+        self.assertIn(bytes(response), [
+            b"Content-Length: 12\r\nContent-Type: text/html; charset=utf-8\r\n\r\nHello World!",
+            b"Content-Type: text/html; charset=utf-8\r\nContent-Length: 12\r\n\r\nHello World!"
+        ])
 
     def test_file_wrapper(self):
         """
-        Verify that FileResponse uses wsgi.file_wrapper.
+        FileResponse uses wsgi.file_wrapper.
         """
-        class FileWrapper(object):
-            def __init__(self, filelike, blksize=8192):
+        class FileWrapper:
+            def __init__(self, filelike, block_size=None):
+                self.block_size = block_size
                 filelike.close()
         application = get_wsgi_application()
-        environ = RequestFactory()._base_environ(
+        environ = self.request_factory._base_environ(
             PATH_INFO='/file/',
             REQUEST_METHOD='GET',
             **{'wsgi.file_wrapper': FileWrapper}
@@ -71,9 +69,10 @@ class WSGITest(TestCase):
         response = application(environ, start_response)
         self.assertEqual(response_data['status'], '200 OK')
         self.assertIsInstance(response, FileWrapper)
+        self.assertEqual(response.block_size, FileResponse.block_size)
 
 
-class GetInternalWSGIApplicationTest(unittest.TestCase):
+class GetInternalWSGIApplicationTest(SimpleTestCase):
     @override_settings(WSGI_APPLICATION="wsgi.wsgi.application")
     def test_success(self):
         """
@@ -110,16 +109,12 @@ class GetInternalWSGIApplicationTest(unittest.TestCase):
 
     @override_settings(WSGI_APPLICATION="wsgi.noexist.app")
     def test_bad_module(self):
-        with six.assertRaisesRegex(self,
-                ImproperlyConfigured,
-                r"^WSGI application 'wsgi.noexist.app' could not be loaded; Error importing.*"):
-
+        msg = "WSGI application 'wsgi.noexist.app' could not be loaded; Error importing"
+        with self.assertRaisesMessage(ImproperlyConfigured, msg):
             get_internal_wsgi_application()
 
     @override_settings(WSGI_APPLICATION="wsgi.wsgi.noexist")
     def test_bad_name(self):
-        with six.assertRaisesRegex(self,
-                ImproperlyConfigured,
-                r"^WSGI application 'wsgi.wsgi.noexist' could not be loaded; Error importing.*"):
-
+        msg = "WSGI application 'wsgi.wsgi.noexist' could not be loaded; Error importing"
+        with self.assertRaisesMessage(ImproperlyConfigured, msg):
             get_internal_wsgi_application()

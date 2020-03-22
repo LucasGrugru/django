@@ -1,8 +1,5 @@
-from __future__ import unicode_literals
-
-import warnings
-
 from django.core import management
+from django.core.management import CommandError
 from django.test import TestCase
 
 from .models import Article
@@ -11,7 +8,7 @@ from .models import Article
 class SampleTestCase(TestCase):
     fixtures = ['fixture1.json', 'fixture2.json']
 
-    def testClassFixtures(self):
+    def test_class_fixtures(self):
         "Test cases can load fixture objects into models defined in packages"
         self.assertEqual(Article.objects.count(), 3)
         self.assertQuerysetEqual(
@@ -51,11 +48,8 @@ class FixtureTestCase(TestCase):
         )
 
         # Load a fixture that doesn't exist
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        with self.assertRaisesMessage(CommandError, "No fixture named 'unknown' found."):
             management.call_command("loaddata", "unknown.json", verbosity=0)
-        self.assertEqual(len(w), 1)
-        self.assertTrue(w[0].message, "No fixture named 'unknown' found.")
 
         self.assertQuerysetEqual(
             Article.objects.all(), [

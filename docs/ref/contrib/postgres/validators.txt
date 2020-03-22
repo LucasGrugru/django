@@ -4,8 +4,11 @@ Validators
 
 .. module:: django.contrib.postgres.validators
 
+These validators are available from the ``django.contrib.postgres.validators``
+module.
+
 ``KeysValidator``
------------------
+=================
 
 .. class:: KeysValidator(keys, strict=False, messages=None)
 
@@ -20,12 +23,18 @@ Validators
         the value of a key is non-empty.
 
 Range validators
-----------------
+================
+
+``RangeMaxValueValidator``
+--------------------------
 
 .. class:: RangeMaxValueValidator(limit_value, message=None)
 
     Validates that the upper bound of the range is not greater than
     ``limit_value``.
+
+``RangeMinValueValidator``
+--------------------------
 
 .. class:: RangeMinValueValidator(limit_value, message=None)
 

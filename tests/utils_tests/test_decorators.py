@@ -2,12 +2,16 @@ from django.http import HttpResponse
 from django.template import engines
 from django.template.response import TemplateResponse
 from django.test import RequestFactory, SimpleTestCase
-from django.utils.decorators import classproperty, decorator_from_middleware
+from django.utils.decorators import decorator_from_middleware
 
 
-class ProcessViewMiddleware(object):
+class ProcessViewMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
     def process_view(self, request, view_func, view_args, view_kwargs):
         pass
+
 
 process_view_dec = decorator_from_middleware(ProcessViewMiddleware)
 
@@ -17,14 +21,18 @@ def process_view(request):
     return HttpResponse()
 
 
-class ClassProcessView(object):
+class ClassProcessView:
     def __call__(self, request):
         return HttpResponse()
+
 
 class_process_view = process_view_dec(ClassProcessView())
 
 
-class FullMiddleware(object):
+class FullMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
     def process_request(self, request):
         request.process_request_reached = True
 
@@ -40,6 +48,7 @@ class FullMiddleware(object):
         request.process_response_content = response.content
         request.process_response_reached = True
         return response
+
 
 full_dec = decorator_from_middleware(FullMiddleware)
 
@@ -65,9 +74,8 @@ class DecoratorFromMiddlewareTests(SimpleTestCase):
 
     def test_full_dec_normal(self):
         """
-        Test that all methods of middleware are called for normal HttpResponses
+        All methods of middleware are called for normal HttpResponses
         """
-
         @full_dec
         def normal_view(request):
             template = engines['django'].from_string("Hello world")
@@ -83,10 +91,9 @@ class DecoratorFromMiddlewareTests(SimpleTestCase):
 
     def test_full_dec_templateresponse(self):
         """
-        Test that all methods of middleware are called for TemplateResponses in
+        All methods of middleware are called for TemplateResponses in
         the right sequence.
         """
-
         @full_dec
         def template_response_view(request):
             template = engines['django'].from_string("Hello world")
@@ -105,43 +112,5 @@ class DecoratorFromMiddlewareTests(SimpleTestCase):
         self.assertFalse(getattr(request, 'process_response_reached', False))
         response.render()
         self.assertTrue(getattr(request, 'process_response_reached', False))
-        # Check that process_response saw the rendered content
+        # process_response saw the rendered content
         self.assertEqual(request.process_response_content, b"Hello world")
-
-
-class ClassPropertyTest(SimpleTestCase):
-    def test_getter(self):
-        class Foo(object):
-            foo_attr = 123
-
-            def __init__(self):
-                self.foo_attr = 456
-
-            @classproperty
-            def foo(cls):
-                return cls.foo_attr
-
-        class Bar(object):
-            bar = classproperty()
-
-            @bar.getter
-            def bar(cls):
-                return 123
-
-        self.assertEqual(Foo.foo, 123)
-        self.assertEqual(Foo().foo, 123)
-        self.assertEqual(Bar.bar, 123)
-        self.assertEqual(Bar().bar, 123)
-
-    def test_override_getter(self):
-        class Foo(object):
-            @classproperty
-            def foo(cls):
-                return 123
-
-            @foo.getter
-            def foo(cls):
-                return 456
-
-        self.assertEqual(Foo.foo, 456)
-        self.assertEqual(Foo().foo, 456)
